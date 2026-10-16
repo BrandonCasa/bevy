@@ -28,23 +28,23 @@ use bevy_core_pipeline::{
 };
 use bevy_ecs::prelude::*;
 use bevy_math::{UVec2, Vec2};
-use bevy_reflect::{reflect_remote, Reflect};
+use bevy_reflect::{Reflect, reflect_remote};
 use bevy_render::{
+    ExtractSchedule, Render, RenderApp, RenderSystems,
     camera::{MipBias, TemporalJitter},
     renderer::{
-        raw_vulkan_init::{AdditionalVulkanFeatures, RawVulkanInitSettings},
         RenderDevice, RenderQueue,
+        raw_vulkan_init::{AdditionalVulkanFeatures, RawVulkanInitSettings},
     },
     texture::CachedTexture,
     view::prepare_view_targets,
-    ExtractSchedule, Render, RenderApp, RenderSystems,
 };
 use dlss_wgpu::{
+    FeatureSupport,
     ray_reconstruction::{
         DlssRayReconstruction, DlssRayReconstructionDepthMode, DlssRayReconstructionRoughnessMode,
     },
     super_resolution::DlssSuperResolution,
-    FeatureSupport,
 };
 use std::{
     marker::PhantomData,
@@ -217,6 +217,11 @@ pub struct Dlss<F: DlssFeature = DlssSuperResolutionFeature> {
     #[reflect(ignore)]
     pub _phantom_data: PhantomData<F>,
 }
+
+/// Optional render-world input that favors current color over temporal history.
+/// The texture must cover the DLSS input rectangle and remain valid until evaluation.
+#[derive(Component)]
+pub struct DlssBiasCurrentColor(pub bevy_render::render_resource::TextureView);
 
 impl<F: DlssFeature> Default for Dlss<F> {
     fn default() -> Self {

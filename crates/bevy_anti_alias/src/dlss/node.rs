@@ -1,6 +1,6 @@
 use super::{
-    prepare::DlssRenderContext, Dlss, DlssRayReconstructionFeature, DlssSuperResolutionFeature,
-    ViewDlssRayReconstructionTextures,
+    Dlss, DlssBiasCurrentColor, DlssRayReconstructionFeature, DlssSuperResolutionFeature,
+    ViewDlssRayReconstructionTextures, prepare::DlssRenderContext,
 };
 use bevy_camera::MainPassResolutionOverride;
 use bevy_core_pipeline::prepass::ViewPrepassTextures;
@@ -26,12 +26,20 @@ pub fn dlss_super_resolution(
         &TemporalJitter,
         &ViewTarget,
         &ViewPrepassTextures,
+        Option<&DlssBiasCurrentColor>,
     )>,
     adapter: Res<RenderAdapter>,
     mut ctx: RenderContext,
 ) {
-    let (dlss, dlss_context, resolution_override, temporal_jitter, view_target, prepass_textures) =
-        view.into_inner();
+    let (
+        dlss,
+        dlss_context,
+        resolution_override,
+        temporal_jitter,
+        view_target,
+        prepass_textures,
+        bias,
+    ) = view.into_inner();
 
     let (Some(prepass_depth_texture), Some(prepass_motion_vectors_texture)) =
         (&prepass_textures.depth, &prepass_textures.motion_vectors)
@@ -47,7 +55,7 @@ pub fn dlss_super_resolution(
         depth: &prepass_depth_texture.texture.default_view,
         motion_vectors: &prepass_motion_vectors_texture.texture.default_view,
         exposure: DlssSuperResolutionExposure::Automatic, // TODO
-        bias: None,                                       // TODO
+        bias: bias.map(|bias| &*bias.0),
         dlss_output: &view_target.destination,
         reset: dlss.reset,
         jitter_offset: (-temporal_jitter.offset).to_array(),
