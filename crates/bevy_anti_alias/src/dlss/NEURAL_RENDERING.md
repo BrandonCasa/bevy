@@ -16,7 +16,8 @@ The pass consumes linear RGBA16F color and the depth/motion prepasses. It runs
 after SR/RR/TAA and before tonemapping and UI. A bounded sRGB proxy feeds the
 model; its linear-light color ratio is composed against the original HDR scene.
 Alpha and pixels outside a camera viewport are preserved. `exposure` controls the
-HDR proxy scale. Intensity zero bypasses the pass. Set `reset` after a camera cut;
+HDR proxy scale. Intensity zero bypasses evaluation while retaining the model for
+re-enabling; removing the camera component retires it. Set `reset` after a camera cut;
 extraction consumes that flag. Model settings are latched at creation, so changing
 them or the viewport size recreates the context. Do not animate model settings
 every frame.

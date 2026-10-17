@@ -108,19 +108,14 @@ impl Drop for DlssSdk {
         });
         unsafe {
             let hal_device = self.device.as_hal::<Vulkan>().unwrap();
-            hal_device
-                .raw_device()
-                .device_wait_idle()
-                .expect("Failed to wait for idle device when destroying DlssSdk");
-
-            check_ngx_result(NVSDK_NGX_VULKAN_DestroyParameters(self.parameters))
-                .expect("Failed to destroy DlssSdk parameters");
+            // Lost devices cannot become idle. Cleanup is best-effort and must not panic.
+            let _ = hal_device.raw_device().device_wait_idle();
             #[cfg(feature = "neural_rendering")]
             if let Some(runtime) = &self.neural_rendering {
                 runtime.shutdown(hal_device.raw_device().handle());
             }
-            check_ngx_result(NVSDK_NGX_VULKAN_Shutdown1(hal_device.raw_device().handle()))
-                .expect("Failed to destroy DlssSdk");
+            let _ = NVSDK_NGX_VULKAN_DestroyParameters(self.parameters);
+            let _ = NVSDK_NGX_VULKAN_Shutdown1(hal_device.raw_device().handle());
         }
     }
 }

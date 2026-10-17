@@ -742,6 +742,13 @@ impl Drop for DlssNeuralRendering {
             (runtime.release, runtime.retired.clone())
         };
         let sdk = Arc::downgrade(&self._sdk);
+        // NGX retains native image/view handles. Keep our scratch images and cached bindings
+        // alive through feature release, not just until the Rust context is dropped.
+        let resources = (
+            self.proxy.clone(),
+            self.answer.clone(),
+            std::mem::take(&mut self.bindings),
+        );
         self.queue.on_submitted_work_done(move || {
             // A weak reference avoids a device -> callback -> SDK -> device cycle. SDK teardown
             // drains these callbacks while its DLL and the NGX runtime are still alive.
@@ -758,6 +765,7 @@ impl Drop for DlssNeuralRendering {
                     let _ = NVSDK_NGX_VULKAN_DestroyParameters(parameters as *mut _);
                 }
             }
+            drop(resources);
         });
     }
 }

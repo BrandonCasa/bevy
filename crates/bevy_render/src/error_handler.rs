@@ -188,6 +188,38 @@ impl DeviceErrorHandler {
 /// We need both the main and render world to properly handle errors, so we wedge ourselves into [extract](bevy_app::SubApp::set_extract).
 pub(crate) fn update_state(main_world: &mut World, render_world: &mut World) {
     if let Some(error) = render_world.resource::<DeviceErrorHandler>().poll() {
+        if matches!(error.ty, ErrorType::DeviceLost) {
+            // wgpu's normal discard path rejects a lost device before releasing the acquired
+            // image. Destroy its payload explicitly before the swapchain is unconfigured.
+            // Output views can retain a frame even after a failed present consumed its wrapper.
+            for target in render_world
+                .query::<&crate::view::ViewTarget>()
+                .iter(render_world)
+            {
+                if let Some(output) = target.out_texture() {
+                    output.texture().destroy();
+                }
+            }
+            if let Some(mut attachments) =
+                render_world.get_resource_mut::<crate::view::ViewTargetAttachments>()
+            {
+                for attachment in attachments.values() {
+                    attachment.view.texture().destroy();
+                }
+                attachments.clear();
+            }
+            for mut window in render_world
+                .query::<&mut crate::view::ExtractedWindow>()
+                .iter_mut(render_world)
+            {
+                if let Some(view) = window.swap_chain_texture_view.take() {
+                    view.texture().destroy();
+                }
+                if let Some(frame) = window.swap_chain_texture.take() {
+                    frame.texture.destroy();
+                }
+            }
+        }
         render_world.insert_resource(RenderState::Errored(error));
     };
 

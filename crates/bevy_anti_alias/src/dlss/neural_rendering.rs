@@ -163,10 +163,16 @@ fn extract(mut commands: Commands, mut main: ResMut<MainWorld>) {
         if let Some(mut settings) = settings
             && camera.is_active
             && *msaa == Msaa::Off
-            && settings.intensity != 0.0
         {
-            render_entity.insert(settings.clone());
-            settings.reset = false;
+            if settings.intensity == 0.0 {
+                // Bypass evaluation without repeatedly unloading/rebuilding the model on F11.
+                // Reset retained history when evaluation resumes.
+                render_entity.remove::<DlssNeuralRendering>();
+                settings.reset = true;
+            } else {
+                render_entity.insert(settings.clone());
+                settings.reset = false;
+            }
         } else {
             render_entity.remove::<(DlssNeuralRendering, PreparedNr)>();
         }

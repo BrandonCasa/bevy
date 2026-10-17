@@ -395,13 +395,9 @@ impl Drop for DlssRayReconstruction {
     fn drop(&mut self) {
         unsafe {
             let hal_device = self.device.as_hal::<Vulkan>().unwrap();
-            hal_device
-                .raw_device()
-                .device_wait_idle()
-                .expect("Failed to wait for idle device when destroying DlssRayReconstruction");
-
-            check_ngx_result(NVSDK_NGX_VULKAN_ReleaseFeature(self.feature))
-                .expect("Failed to destroy DlssRayReconstruction feature");
+            // Device loss is already reported by wgpu. Teardown must not panic on that error.
+            let _ = hal_device.raw_device().device_wait_idle();
+            let _ = NVSDK_NGX_VULKAN_ReleaseFeature(self.feature);
         }
     }
 }
