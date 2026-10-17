@@ -85,6 +85,8 @@ pub fn prepare_dlss<F: DlssFeature>(
                 let render_resolution = F::render_resolution(&dlss_context);
                 temporal_jitter.offset =
                     F::suggested_jitter(&dlss_context, frame_count.0, render_resolution);
+                // Camera extraction restores the main-world bias each frame.
+                mip_bias.0 = F::suggested_mip_bias(&dlss_context, render_resolution);
             }
             _ => {
                 let dlss_context = F::new_context(
