@@ -44,6 +44,8 @@ members = [
   "errors",
 ]
 exclude = [
+  # The wgpu integration also builds independently of Bevy.
+  "crates/dlss_wgpu",
   # Integration tests are not part of the workspace
   "tests-integration",
 ]
@@ -606,6 +608,9 @@ area_light_luts = ["bevy_internal/area_light_luts"]
 
 # NVIDIA Deep Learning Super Sampling
 dlss = ["bevy_internal/dlss"]
+
+# Native Vulkan neural rendering using an application-supplied DLSS NR library.
+dlss_neural_rendering = ["bevy_internal/dlss_neural_rendering"]
 
 # Forcibly disable DLSS so that `cargo build --all-features` works without the DLSS SDK being installed. Not meant for users.
 force_disable_dlss = ["bevy_internal/force_disable_dlss"]
@@ -5801,6 +5806,18 @@ name = "GPU Component Array Buffer"
 description = "Shows how to expose per-mesh-instance data to the GPU"
 category = "Shaders"
 wasm = true
+
+[[example]]
+name = "dlss_neural_rendering"
+path = "examples/3d/dlss_neural_rendering.rs"
+required-features = ["3d", "dlss_neural_rendering"]
+doc-scrape-examples = true
+
+[package.metadata.example.dlss_neural_rendering]
+name = "DLSS Neural Rendering"
+description = "Native Vulkan neural rendering with an application-supplied model and camera toggle"
+category = "3D Rendering"
+wasm = false
 
 [package.metadata.wgsl-analyzer]
 edition = "2026_pre"

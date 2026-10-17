@@ -18,6 +18,9 @@ mod extract;
 mod node;
 mod prepare;
 
+#[cfg(feature = "dlss_neural_rendering")]
+pub mod neural_rendering;
+
 pub use dlss_wgpu::DlssPerfQualityMode;
 
 use bevy_app::{App, Plugin};
@@ -28,23 +31,23 @@ use bevy_core_pipeline::{
 };
 use bevy_ecs::prelude::*;
 use bevy_math::{UVec2, Vec2};
-use bevy_reflect::{Reflect, reflect_remote};
+use bevy_reflect::{reflect_remote, Reflect};
 use bevy_render::{
-    ExtractSchedule, Render, RenderApp, RenderSystems,
     camera::{MipBias, TemporalJitter},
     renderer::{
-        RenderDevice, RenderQueue,
         raw_vulkan_init::{AdditionalVulkanFeatures, RawVulkanInitSettings},
+        RenderDevice, RenderQueue,
     },
     texture::CachedTexture,
     view::prepare_view_targets,
+    ExtractSchedule, Render, RenderApp, RenderSystems,
 };
 use dlss_wgpu::{
-    FeatureSupport,
     ray_reconstruction::{
         DlssRayReconstruction, DlssRayReconstructionDepthMode, DlssRayReconstructionRoughnessMode,
     },
     super_resolution::DlssSuperResolution,
+    FeatureSupport,
 };
 use std::{
     marker::PhantomData,
@@ -97,6 +100,11 @@ impl Plugin for DlssInitPlugin {
         unsafe {
             raw_vulkan_settings.add_create_device_callback(
                 move |mut args, adapter, additional_vulkan_features| {
+                    #[cfg(feature = "dlss_neural_rendering")]
+                    if dlss_wgpu::neural_rendering::register_device_extensions(&mut args, adapter) {
+                        additional_vulkan_features
+                            .insert::<neural_rendering::NeuralRenderingExtensions>();
+                    }
                     let mut feature_support = FeatureSupport::default();
                     match dlss_wgpu::register_device_extensions(
                         dlss_project_id,
@@ -135,6 +143,11 @@ impl Plugin for DlssPlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<Dlss<DlssSuperResolutionFeature>>()
             .register_type::<Dlss<DlssRayReconstructionFeature>>();
+        #[cfg(feature = "dlss_neural_rendering")]
+        app.register_type::<neural_rendering::DlssNeuralRendering>()
+            .add_plugins(bevy_render::sync_component::SyncComponentPlugin::<
+                neural_rendering::DlssNeuralRendering,
+            >::default());
     }
 
     fn finish(&self, app: &mut App) {
@@ -170,8 +183,11 @@ impl Plugin for DlssPlugin {
             app.insert_resource(DlssRayReconstructionSupported);
         }
 
+        let dlss_sdk = dlss_sdk.unwrap();
+        #[cfg(feature = "dlss_neural_rendering")]
+        neural_rendering::setup(app, &dlss_sdk);
         app.sub_app_mut(RenderApp)
-            .insert_resource(DlssSdk(dlss_sdk.unwrap()))
+            .insert_resource(DlssSdk(dlss_sdk))
             .add_systems(
                 ExtractSchedule,
                 (
